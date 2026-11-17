@@ -1,8 +1,8 @@
 # index, build output, data, results
-index/
-index_test/
-target/
-cp.txt
+/index/
+/index_test/
+/target/
+/cp.txt
 Assignment Two/
 results/*.run
 
