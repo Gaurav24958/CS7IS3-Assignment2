@@ -1,0 +1,18 @@
+# index, build output, data, results
+index/
+index_test/
+target/
+cp.txt
+Assignment Two/
+results/*.run
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Claude / AI tooling files (never commit)
+CLAUDE.md
+AGENTS.md
+.claude/
+Claude outputs/
