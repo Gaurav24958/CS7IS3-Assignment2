@@ -1,0 +1,80 @@
+# CS7IS3 Assignment 2: Lucene search over FT, LA Times, FBIS and Federal Register
+
+Group project: build a Lucene index over four TREC news collections (about 528,000 documents), turn topics into queries, and write the best 1,000 results per topic in TREC run format. Phase 1 deadline: **Fri 20 Nov 2026**. Matching against the qrels is on **DOCNO**, so DOCNO must be trimmed and exact everywhere.
+
+This README was written by Person 1 when the repo was still empty. It records what exists, what is pending and why.
+
+## Notes for Person 4 (please read before pushing)
+Person 1 pushed first versions of `pom.xml`, `.gitignore` and `README.md` because the repo was empty and the code needed something to build with. These are yours by the team plan, so:
+
+- **`git pull` before you add anything.** Merge with what is here; do not overwrite or force-push.
+- **`pom.xml` is a placeholder.** Improve it as you like, but keep `lucene-core`, `lucene-analysis-common` and `lucene-queryparser`, and keep the Lucene version (10.2.2, needs Java 21+) unless the whole team agrees to change it. Everyone must use the same version.
+- **Keep the `.gitignore` entries** for `/index/`, `/index_test/`, `/target/` (anchored with a leading slash, otherwise `index/` also ignores the source package `cs7is3/index`), the data folder (`Assignment Two/`) and run files. Never commit the index, the collection or results files. AI tool files (`CLAUDE.md`, `.claude/`, etc.) are also ignored on purpose.
+- **Do not re-create the class files that already exist** (listed under "Done"). Add only the files owned by other people that are still missing (see "Not in the repo yet").
+- **README:** add the parts you own (Java and Lucene versions, trec_eval command, run scripts). Edit this file, do not replace it.
+- No hard-coded paths. Data folder, index folder, topics file and output file are command-line arguments.
+
+## Layout (agreed team plan)
+`src/main/java/cs7is3/`
+
+| File | Owner | Status |
+|---|---|---|
+| `parse/ParsedDoc.java` | P1 | done |
+| `AnalyzerFactory.java` | P1 | done |
+| `parse/ParseUtil.java` | P1 | done (small shared helper, not in the original plan) |
+| `parse/FtParser.java` | P1 | done |
+| `parse/LaTimesParser.java` | P1 | done |
+| `index/Indexer.java` | P1 | FT + LA Times done; FBIS and FR94 pending |
+| `topics/Topic.java`, `topics/TopicParser.java`, `query/QueryBuilder.java` | P2 | not in the repo yet |
+| `parse/FbisParser.java`, `parse/Fr94Parser.java`, `search/Searcher.java` | P3 | not in the repo yet |
+| `output/RunWriter.java`, `Main.java`, `scripts/`, `results/run_log.csv` | P4 | not in the repo yet |
+
+## Done (Person 1, tasks A1 to A5)
+- **ParsedDoc**: plain object with `docno`, `title`, `text`, `date`, `source`.
+- **AnalyzerFactory.create()**: returns an `EnglishAnalyzer` (English stop words, possessive removal, Porter stemming). **Indexing and query building must both use it** so they match. P2: use this in `QueryBuilder`.
+- **FtParser**: `List<ParsedDoc> parseFile(Path)`. Splits on `<DOC>`, takes DOCNO (trimmed), HEADLINE as title, TEXT as text, DATE as date, source `FT`. Skips `readmeft` and `readfrcg`. **210,158 documents** (expected about 210,000).
+- **LaTimesParser**: same interface. Strips `<P>` tags, trims the space-padded DOCNO, source `LATIMES`. **131,896 documents** (expected about 131,900).
+- **Indexer**: `FSDirectory` + `IndexWriter` with `AnalyzerFactory`. Prints a count per source, the total, bad and duplicate DOCNO counts, and the time. Test build of FT + LA Times: **342,054 documents in 106 s, 0 bad DOCNOs, 0 duplicates**. A quick BM25 query for "Ireland peace talks" on the test index returns results.
+
+Index fields:
+
+| Field | Type | Stored |
+|---|---|---|
+| `docno` | StringField (exact, not analysed) | yes |
+| `title` | TextField (analysed) | no |
+| `text` | TextField (analysed) | no |
+| `source` | StringField (FT, LATIMES, FBIS, FR94) | yes |
+| `date` | StringField | yes |
+
+Note: FT dates look like `910514`, LA Times dates are free text (`January 1, 1989, Sunday, Home Edition`). The date is stored as-is and not used for searching.
+
+## Pending, and why
+| Item | Why it is pending |
+|---|---|
+| A6: add FBIS and FR94 to `Indexer`, build the full index (about 528,000 docs) | Needs P3's `FbisParser` and `Fr94Parser`. The two lines are ready and commented out in `Indexer.parsers()`. Uncomment them once the parsers are merged. |
+| A7: journal entry (fields, analyzer, why) | Waiting for the shared journal (P4). |
+| A8: help P3 with the Federal Register parser | Optional, depends on P3 asking. |
+| Check the document count per source in the full index | Depends on A6. |
+
+## Not in the repo yet
+Everything owned by P2, P3 and P4 (see the table above). These are not missing by mistake, they have not been pushed yet. Parsers from P3 must expose `List<ParsedDoc> parseFile(Path)` and return trimmed DOCNOs so they plug into `Indexer` without changes.
+
+## Build and run
+Requires Java 21+ (tested on Java 25) and Maven.
+
+```
+mvn compile
+mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
+```
+
+Parser check (prints the count and one sample document):
+```
+java -cp "target/classes;$(cat cp.txt)" cs7is3.parse.FtParser "<path>/Assignment Two/ft"
+java -cp "target/classes;$(cat cp.txt)" cs7is3.parse.LaTimesParser "<path>/Assignment Two/latimes"
+```
+
+Build an index (arguments: data folder, index folder, optional comma-separated sources, default `ft,latimes`):
+```
+java -cp "target/classes;$(cat cp.txt)" cs7is3.index.Indexer "<path>/Assignment Two" index ft,latimes
+```
+On Linux or macOS use `:` instead of `;` in the classpath. The data folder is the one that contains `ft/`, `latimes/`, `fbis/` and `fr94/`. The index folder is created locally and must not be committed.
