@@ -4,8 +4,11 @@ Group project: build a Lucene index over four TREC news collections (about 528,0
 
 This README was written by Person 1 when the repo was still empty. It records what exists, what is pending and why.
 
-## Notes for Person 4 (please read before pushing)
-Person 1 pushed first versions of `pom.xml`, `.gitignore` and `README.md` because the repo was empty and the code needed something to build with. These are yours by the team plan, so:
+## Update 18 Nov: Person 4 has left, Person 1 now owns the Person 4 files
+The repo setup, run writer, validation, evaluation scripts, run log and journal are now maintained by Person 1. Everyone else: send P1 a message if you need a change in those files. The rules below still apply to everyone.
+
+## Rules for everyone (originally written as notes for Person 4)
+Person 1 pushed first versions of `pom.xml`, `.gitignore` and `README.md` because the repo was empty and the code needed something to build with, so:
 
 - **`git pull` before you add anything.** Merge with what is here; do not overwrite or force-push.
 - **`pom.xml` is a placeholder.** Improve it as you like, but keep `lucene-core`, `lucene-analysis-common` and `lucene-queryparser`, and keep the Lucene version (10.2.2, needs Java 21+) unless the whole team agrees to change it. Everyone must use the same version.
@@ -27,7 +30,9 @@ Person 1 pushed first versions of `pom.xml`, `.gitignore` and `README.md` becaus
 | `index/Indexer.java` | P1 | FT + LA Times done; FBIS and FR94 pending |
 | `topics/Topic.java`, `topics/TopicParser.java`, `query/QueryBuilder.java` | P2 | not in the repo yet |
 | `parse/FbisParser.java`, `parse/Fr94Parser.java`, `search/Searcher.java` | P3 | not in the repo yet |
-| `output/RunWriter.java`, `Main.java`, `scripts/`, `results/run_log.csv` | P4 | not in the repo yet |
+| `output/RunWriter.java` | P4 (now P1) | done |
+| `scripts/validate_run.py`, `scripts/eval.bat`, `scripts/eval.sh`, `results/run_log.csv` | P4 (now P1) | done |
+| `Main.java`, `scripts/run_all.bat` | P4 (now P1) | pending: needs P2's and P3's code (see below) |
 
 ## Done (Person 1, tasks A1 to A5)
 - **ParsedDoc**: plain object with `docno`, `title`, `text`, `date`, `source`.
@@ -78,3 +83,44 @@ Build an index (arguments: data folder, index folder, optional comma-separated s
 java -cp "target/classes;$(cat cp.txt)" cs7is3.index.Indexer "<path>/Assignment Two" index ft,latimes
 ```
 On Linux or macOS use `:` instead of `;` in the classpath. The data folder is the one that contains `ft/`, `latimes/`, `fbis/` and `fr94/`. The index folder is created locally and must not be committed.
+
+## Run files, validation and evaluation (Person 4 tasks, done by P1)
+
+**RunWriter** (`output/RunWriter.java`) writes one line per result: `topicNumber Q0 DOCNO rank score runName`, space separated, rank from 1 in the order given (pass results best first), score with a dot decimal. Use it as:
+```java
+try (RunWriter w = RunWriter.open(Path.of("results/baseline_v1.run"), "baseline_v1")) {
+    w.write(404, List.of(new RunWriter.Result("FT911-1", 12.3456f), ...));
+}
+```
+`RunWriter.Result(String docno, float score)` is a tiny record. P3: adapt `Searcher` output to it with one line, or tell P1 if you would rather have a different type.
+
+**Validate every run file before it is shared** (Python 3, no packages needed):
+```
+python scripts/validate_run.py results/baseline_v1.run
+```
+It checks exactly 1,000 lines per topic, no repeated DOCNO per topic, ranks 1..1000, scores never increasing, no blank DOCNO, six fields per line, and one run name. It exits with a non-zero code and prints the problem if anything is wrong. Use `--per-topic N` for small tests.
+
+**trec_eval (Windows via WSL2).** One-time build, in the Ubuntu terminal (needs `build-essential` and `git`):
+```
+git clone https://github.com/usnistgov/trec_eval.git ~/trec_eval
+cd ~/trec_eval && make
+```
+Test on the fake files in `scripts/test_trec_eval/` (prints `map all 1.0000`):
+```
+scripts\eval.bat scripts\test_trec_eval\qrels.txt scripts\test_trec_eval\run.txt
+```
+Same thing on Linux, macOS or inside WSL:
+```
+bash scripts/eval.sh scripts/test_trec_eval/qrels.txt scripts/test_trec_eval/run.txt
+```
+`eval.bat` converts the Windows paths for WSL and runs `~/trec_eval/trec_eval -m map <qrels> <run>`. Add extra trec_eval options after the two paths in `eval.sh`, for example `-q` for per-topic scores. Matching is on **DOCNO**, not DOCID.
+
+**Run log:** add one row to `results/run_log.csv` for every run (`date,run name,who,what changed,MAP,notes`). Run files themselves (`results/*.run`) are not committed.
+
+## Still pending for the Person 4 role, and why
+| Item | Why |
+|---|---|
+| D7 `Main.java` (modes `index` and `search`) | Needs `TopicParser`, `QueryBuilder` (P2) and `Searcher` (P3), which are not pushed yet. |
+| D8 `scripts/run_all.bat` (build, index, search, validate) | Needs `Main` and the full index. |
+| D11 Friday: run trec_eval on the qrels, log MAP | The qrels arrive on 20 Nov, after a first full run exists. |
+| Final checks, tag `phase1`, submit the run file | Wait for the first full run. How to submit is an open question for the lecturer. |
