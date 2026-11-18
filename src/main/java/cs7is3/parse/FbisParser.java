@@ -9,18 +9,12 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-/**
- * Parses Foreign Broadcast Information Service files (fbis/fb396001 ...).
- * Title comes from <TI> (inside <HEADER><H3>), date from <DATE1>, body from <TEXT> plus the optional <ABS> subject line.
- * The <F P=100..105> tags hold metadata (country, ID codes, source, language), not article text, so they are removed;
- * <F P=106> (report credit) and <F P=107> (highlighted phrases) are part of the text and are kept.
- */
 public class FbisParser {
     public static final String SOURCE = "FBIS";
 
     private static final Pattern METADATA = Pattern.compile("<F P=10[0-5]>.*?</F>", Pattern.DOTALL);
     private static final Pattern TEXT_MARKER = Pattern.compile("\\[(Text|Excerpt|Excerpts)\\]");
-    /** Any entity other than the three that ParseUtil.clean decodes (e.g. &yen; &pound;) becomes a space. */
+
     private static final Pattern OTHER_ENTITY = Pattern.compile("&(?!amp;|lt;|gt;)[A-Za-z0-9]+;");
 
     public List<ParsedDoc> parseFile(Path file) {
@@ -28,7 +22,7 @@ public class FbisParser {
         if (ParseUtil.isReadme(file)) return docs;
         try {
             for (String block : ParseUtil.splitDocs(ParseUtil.read(file))) {
-                String docno = ParseUtil.clean(ParseUtil.field(block, "DOCNO")); // "FBIS3-1" padded with spaces
+                String docno = ParseUtil.clean(ParseUtil.field(block, "DOCNO"));
                 if (docno.isEmpty()) continue;
                 String body = ParseUtil.field(block, "ABS") + " " + ParseUtil.field(block, "TEXT");
                 body = METADATA.matcher(body).replaceAll(" ");
@@ -49,7 +43,6 @@ public class FbisParser {
         return ParseUtil.clean(OTHER_ENTITY.matcher(s).replaceAll(" "));
     }
 
-    /** Test main: java cs7is3.parse.FbisParser <fbis folder>. Prints the count, problems and one sample. */
     public static void main(String[] args) throws IOException {
         FbisParser p = new FbisParser();
         int count = 0, emptyText = 0, emptyTitle = 0;

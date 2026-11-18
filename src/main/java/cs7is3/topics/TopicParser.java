@@ -9,10 +9,6 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Reads the TREC topics file. Each topic sits between <top> and </top>; the <num>, <title>, <desc> and <narr>
- * sections have no closing tags, so each section runs until the next section tag (or the end of the topic).
- */
 public class TopicParser {
     private static final Pattern TOP = Pattern.compile("<top>(.*?)</top>", Pattern.DOTALL);
     private static final Pattern NUM = Pattern.compile("<num>\\s*(?:Number:)?\\s*(\\d+)");
@@ -35,13 +31,11 @@ public class TopicParser {
         return topics;
     }
 
-    /** First match of the section pattern with whitespace collapsed, or "" if the section is missing. */
     private static String section(Pattern p, String block) {
         Matcher m = p.matcher(block);
         return m.find() ? m.group(1).replaceAll("\\s+", " ").strip() : "";
     }
 
-    /** Test main: java cs7is3.topics.TopicParser <topics file>. Prints the count and every topic. */
     public static void main(String[] args) throws IOException {
         List<Topic> topics = new TopicParser().parse(Path.of(args[0]));
         System.out.println("Topics: " + topics.size());
