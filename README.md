@@ -28,8 +28,8 @@ Person 1 pushed first versions of `pom.xml`, `.gitignore` and `README.md` becaus
 | `parse/FtParser.java` | P1 | done |
 | `parse/LaTimesParser.java` | P1 | done |
 | `index/Indexer.java` | P1 | FT + LA Times done; FBIS and FR94 pending |
-| `topics/Topic.java`, `topics/TopicParser.java`, `query/QueryBuilder.java` | P2 | not in the repo yet |
-| `parse/FbisParser.java`, `parse/Fr94Parser.java`, `search/Searcher.java` | P3 | not in the repo yet |
+| `topics/Topic.java`, `topics/TopicParser.java`, `query/QueryBuilder.java` | P2 | done (branch `p2-p3-topics-search`) |
+| `parse/FbisParser.java`, `parse/Fr94Parser.java`, `search/Searcher.java` | P3 | done (branch `p2-p3-topics-search`) |
 | `output/RunWriter.java` | P4 (now P1) | done |
 | `scripts/validate_run.py`, `scripts/eval.bat`, `scripts/eval.sh`, `results/run_log.csv` | P4 (now P1) | done |
 | `Main.java`, `scripts/run_all.bat` | P4 (now P1) | pending: needs P2's and P3's code (see below) |
@@ -62,7 +62,28 @@ Note: FT dates look like `910514`, LA Times dates are free text (`January 1, 198
 | Check the document count per source in the full index | Depends on A6. |
 
 ## Not in the repo yet
-Everything owned by P2, P3 and P4 (see the table above). These are not missing by mistake, they have not been pushed yet. Parsers from P3 must expose `List<ParsedDoc> parseFile(Path)` and return trimmed DOCNOs so they plug into `Indexer` without changes.
+`Main.java` and `scripts/run_all.bat` (P1, as P4). P3's parsers expose `List<ParsedDoc> parseFile(Path)` and return trimmed DOCNOs, so they plug into `Indexer` without changes.
+
+## Done (Persons 2 and 3, 18 Nov)
+**P3 parsers**, same interface as the FT and LA Times parsers, each with a test main that prints the count and a sample:
+- **FbisParser**: title from `<TI>`, date from `<DATE1>`, text from `<ABS>` + `<TEXT>`. The `<F P=100>` to `<F P=105>` tags (country, ID codes, source, language) are metadata and are removed; `<F P=106>`/`<F P=107>` are kept as text. Entities other than `&amp; &lt; &gt;` (`&yen;`, `&pound;`) become spaces. **130,471 documents** (expected about 130,500), 3 with an empty title.
+- **Fr94Parser**: removes the `<!-- PJG ... -->` typesetting comments and the boilerplate blocks `BILLING, FRFILING, RINDOCK, CFRNO, SIGNER, SIGNJOB`; decodes `&hyph;` to `-` and `&blank;`, `&sect;`, `&para;` etc. to spaces (otherwise "hyph" and "blank" would be indexed as words, 500k+ times). Title from `<DOCTITLE>` (10,953 of the documents have one). The `<DATE>` tag holds effective dates, so the date comes from the DOCNO (`FR940104-0-00001` -> `940104`). **55,630 documents** (expected about 55,600), 161 with empty text (volume header pages), 0 with leftover PJG comments or entities.
+
+**Full index test** (with the two A6 lines in `Indexer.parsers()` uncommented locally, not committed, since `Indexer` is P1's file): **528,155 documents in 76 s, 0 bad DOCNOs, 0 duplicates.** P1: uncomment the two lines and add the two imports (`FbisParser`, `Fr94Parser`).
+
+**P2 topics and queries**
+- **TopicParser**: `List<Topic> parse(Path)`; `Topic` is a record `(int number, String title, String desc, String narrative)` with the "Description:"/"Narrative:" prefixes removed and whitespace collapsed. 50 topics (401-450), none with an empty section.
+- **QueryBuilder**: `Query build(Topic)`. Mode `T`, `TD` (default) or `TDN`. Terms go through `AnalyzerFactory`, are weighted by section (title 1.0, description 0.5, narrative 0.25, summed if a term repeats) and searched in `text` and in `title` (title field boost 1.5). Task words ("documents", "relevant", "discuss", "what" ...) are dropped from the description and narrative. In `TDN`, narrative sentences that say "not relevant" are dropped. The query is built from analyzed terms, not QueryParser, so topic punctuation cannot break it. `buildFallback(Topic)` returns the broader `TDN` query (see Searcher).
+
+**P3 Searcher**
+- `new Searcher(indexDir, Searcher.similarity("bm25"))`, then `List<RunWriter.Result> search(Query, Query fallback, int n)`. DOCNO is read from the stored field.
+- Models by spec string: `bm25`, `bm25:K1,B`, `lmd[:MU]` (default 1000), `lmjm[:LAMBDA]` (default 0.7), `classic`. No re-index needed to switch.
+- If the main query matches fewer than n documents (e.g. title-only `lmd` on topic 403 "osteoporosis" matches only 85), the list is topped up with unseen results of the fallback query, scored just below the last real result, so every topic has exactly 1,000 lines.
+- Test main until `Main` exists (P1: `Main` can call the same three classes):
+```
+java -cp "target/classes:$(cat cp.txt)" cs7is3.search.Searcher index "<path>/topics" results/baseline_v1.run baseline_v1 bm25 TD
+```
+Arguments: index folder, topics file, run file, then optional run name, model, query mode (`T|TD|TDN`), title field boost. All of `bm25 TD`, `bm25 T`, `bm25:0.9,0.4 TDN`, `lmd T`, `lmjm:0.7 TD` and `classic TD` produce run files that pass `validate_run.py` (50 topics x 1,000), in under a second each.
 
 ## Build and run
 Requires Java 21+ (tested on Java 25) and Maven.
@@ -120,7 +141,7 @@ bash scripts/eval.sh scripts/test_trec_eval/qrels.txt scripts/test_trec_eval/run
 ## Still pending for the Person 4 role, and why
 | Item | Why |
 |---|---|
-| D7 `Main.java` (modes `index` and `search`) | Needs `TopicParser`, `QueryBuilder` (P2) and `Searcher` (P3), which are not pushed yet. |
+| D7 `Main.java` (modes `index` and `search`) | `TopicParser`, `QueryBuilder` and `Searcher` are now on branch `p2-p3-topics-search`; `Searcher.main` shows the calls. |
 | D8 `scripts/run_all.bat` (build, index, search, validate) | Needs `Main` and the full index. |
 | D11 Friday: run trec_eval on the qrels, log MAP | The qrels arrive on 20 Nov, after a first full run exists. |
 | Final checks, tag `phase1`, submit the run file | Wait for the first full run. How to submit is an open question for the lecturer. |
