@@ -21,18 +21,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-/**
- * Runs queries against the index with a chosen retrieval model and returns the best results as DOCNOs.
- * The DOCNO is read from the stored "docno" field; Lucene's internal doc ids are never exposed.
- *
- * Retrieval models are chosen with a short spec string so experiments need no code change:
- *   bm25            BM25, Lucene defaults k1=1.2, b=0.75
- *   bm25:K1,B       BM25 with the given k1 and b, e.g. bm25:0.9,0.4
- *   lmd[:MU]        language model, Dirichlet smoothing (default mu=1000)
- *   lmjm[:LAMBDA]   language model, Jelinek-Mercer smoothing (default lambda=0.7)
- *   classic         TF-IDF vector space model
- * Lucene's length norms are the same for all of these, so the model can be switched without re-indexing.
- */
 public class Searcher implements AutoCloseable {
     public static final int TOP_N = 1000;
 
@@ -45,7 +33,6 @@ public class Searcher implements AutoCloseable {
         this.searcher.setSimilarity(similarity);
     }
 
-    /** The best n results for the query, best first, as (DOCNO, score) ready for RunWriter. */
     public List<RunWriter.Result> search(Query query, int n) throws IOException {
         TopDocs top = searcher.search(query, n);
         StoredFields stored = searcher.storedFields();
@@ -57,11 +44,6 @@ public class Searcher implements AutoCloseable {
         return results;
     }
 
-    /**
-     * Like {@link #search(Query, int)}, but if the main query returns fewer than n results the list is topped up
-     * with the best unseen results of the fallback query. Their scores are set just below the last main result
-     * (in fallback order, 0.001 apart), so the main results stay on top and scores never increase down the list.
-     */
     public List<RunWriter.Result> search(Query query, Query fallback, int n) throws IOException {
         List<RunWriter.Result> results = search(query, n);
         if (results.size() >= n || fallback == null) return results;
@@ -78,12 +60,10 @@ public class Searcher implements AutoCloseable {
         return results;
     }
 
-    /** Number of documents in the index. */
     public int numDocs() {
         return reader.numDocs();
     }
 
-    /** Parses a model spec (see class comment) into a Lucene Similarity. */
     public static Similarity similarity(String spec) {
         String[] parts = spec.toLowerCase(Locale.ROOT).split(":", 2);
         String[] p = parts.length > 1 ? parts[1].split(",") : new String[0];
@@ -104,11 +84,6 @@ public class Searcher implements AutoCloseable {
         reader.close();
     }
 
-    /**
-     * Searches every topic and writes a TREC run file.
-     * Usage: Searcher <indexFolder> <topicsFile> <runFile> [runName] [model] [queryMode T|TD|TDN] [titleFieldBoost]
-     * Defaults: runName baseline_v1, model bm25, queryMode TD, titleFieldBoost 1.5.
-     */
     public static void main(String[] args) throws IOException {
         if (args.length < 3) {
             System.err.println("Usage: Searcher <indexFolder> <topicsFile> <runFile> [runName] [model] [T|TD|TDN] [titleFieldBoost]");
