@@ -1,1 +1,2 @@
 date,run name,who,what changed,MAP,notes
+2026-11-19,baseline_v1,Aarav,"First full run: BM25 k1=1.2 b=0.75, topics title+description (TD), title boost 1.5, full 4-source index (528155 docs)",pending (qrels arrive 20 Nov),"50 topics x 1000 results; validate_run.py OK; all four sources present"

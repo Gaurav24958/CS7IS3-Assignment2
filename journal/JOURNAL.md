@@ -21,7 +21,7 @@ This journal is mandatory. Everyone logs their own work here as they go (commit 
 - **Roles:** as in the table above
 - **Summary:**
   - Group name chosen: ____________________
-  - Work division agreed (see the team's Phase 1 plan document, "CS7IS3_Assignment2_Phase1_Plan" for the four-person split and the shared file names and formats)
+  - Work division agreed (see the team's Phase 1 plan document, "CS7IS3_Assignment2_Phase1_Plan", for the four-person split and the shared file names and formats)
   - Fixed formats: index fields `docno, title, text, source, date`; DOCNO always trimmed; run line `topic Q0 DOCNO rank score runName`; 1,000 results per topic; no hard-coded paths
   - Other decisions: ____________________________________
 
@@ -47,6 +47,14 @@ This journal is mandatory. Everyone logs their own work here as they go (commit 
 - Baseline run `baseline_v1` (BM25, title + description) and test runs with BM25 variants, LM Dirichlet, LM Jelinek-Mercer and TF-IDF all pass `validate_run.py`.
 - Problem found and fixed: a title-only query for a rare word (topic 403, "osteoporosis") matched only 85 documents, below the required 1,000. Short lists are now topped up from a broader title + description + narrative query.
 - Pending: P1 to enable FBIS and FR94 in `Indexer` (A6) and write `Main`; MAP once the qrels arrive on 20 Nov.
+
+### Entry 5: Review and integration, 19 Nov 2026
+- P1 reviewed the P2 and P3 work on branch `p2-p3-topics-search` by building it and re-running it on the real data. Reproduced: FBIS 130,471 documents, FR94 55,630, 50 topics (401 to 450, topic 404 "Ireland, peace talks"). No bugs found in the parsers, `TopicParser`, `QueryBuilder` or `Searcher`.
+- A6 done: `Indexer` now includes FBIS and FR94. Full index 528,155 documents (FT 210,158, LA Times 131,896, FBIS 130,471, FR94 55,630), 0 bad and 0 duplicate DOCNOs.
+- D7 and D8 done: `Main` (modes `index` and `search`), `scripts/run_all.bat` and `run_all.sh` (build, index, search, validate).
+- First run `baseline_v1` (BM25 defaults, title + description, title boost 1.5): 50 topics x 1,000 results, passes `validate_run.py`. All DOCNOs match the expected ID formats for all four sources; all four sources appear in the results; top 5 read by hand for topics 403, 404 and 410 were on topic.
+- Observed, not changed: FBIS article text begins with header words ("Language: English Article Type:BFN"). To look at after the first MAP.
+- MAP: pending. The qrels arrive on 20 Nov. No tuning before then, to avoid overfitting to the judged half of the topics.
 
 ## Design decisions
 
@@ -82,6 +90,7 @@ This journal is mandatory. Everyone logs their own work here as they go (commit 
 |---|---|---|
 | P1 | 17 Nov | ParsedDoc, AnalyzerFactory, ParseUtil, FtParser, LaTimesParser, Indexer (FT + LA Times), repo first push, README |
 | P1 (as P4) | 18 Nov | trec_eval build and test, RunWriter, validate_run.py, eval scripts, run_log.csv, journal |
+| P1 (as P4) | 19 Nov | Review of P2/P3 branch, Indexer with all four sources (A6), `Main`, `run_all` scripts, first run `baseline_v1`, checks, README |
 | P2 | 18 Nov | Topic, TopicParser, QueryBuilder (T / TD / TDN modes, section weights, title boost, fallback query) |
 | P3 | 18 Nov | FbisParser, Fr94Parser, Searcher (BM25, LM Dirichlet, LM Jelinek-Mercer, TF-IDF; top-up to 1,000 results); full four-source index test |
 
