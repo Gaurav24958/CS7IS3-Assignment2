@@ -1,6 +1,8 @@
 package cs7is3.index;
 
 import cs7is3.AnalyzerFactory;
+import cs7is3.parse.FbisParser;
+import cs7is3.parse.Fr94Parser;
 import cs7is3.parse.FtParser;
 import cs7is3.parse.LaTimesParser;
 import cs7is3.parse.ParsedDoc;
@@ -36,13 +38,16 @@ public class Indexer {
         this.indexDir = indexDir;
     }
 
-    /** folder name -> (source label, per-file parser). FBIS and FR94 are added once P3's parsers are merged. */
+    /** All four collection folders, in the order they are indexed. */
+    public static final String ALL_SOURCES = "ft,latimes,fbis,fr94";
+
+    /** folder name -> per-file parser. */
     private Map<String, Function<Path, List<ParsedDoc>>> parsers() {
         Map<String, Function<Path, List<ParsedDoc>>> m = new LinkedHashMap<>();
         m.put("ft", new FtParser()::parseFile);
         m.put("latimes", new LaTimesParser()::parseFile);
-        // m.put("fbis", new FbisParser()::parseFile);   // TODO A6
-        // m.put("fr94", new Fr94Parser()::parseFile);   // TODO A6
+        m.put("fbis", new FbisParser()::parseFile);
+        m.put("fr94", new Fr94Parser()::parseFile);
         return m;
     }
 
@@ -98,7 +103,7 @@ public class Indexer {
             System.err.println("Usage: Indexer <dataFolder> <indexFolder> [ft,latimes,fbis,fr94]");
             System.exit(1);
         }
-        List<String> sources = Arrays.asList((args.length > 2 ? args[2] : "ft,latimes").split(","));
+        List<String> sources = Arrays.asList((args.length > 2 ? args[2] : ALL_SOURCES).split(","));
         new Indexer(Path.of(args[0]), Path.of(args[1])).index(sources);
     }
 }
